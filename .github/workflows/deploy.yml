@@ -1,0 +1,32 @@
+name: Deploy
+on:
+  #allow manual triggering of workflow in GitHub
+  workflow_dispatch:
+  push:
+    branches: [ main, develop, release ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: '--max-old-space-size=2048'
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '14.15.4'
+      - run: npm install
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Serverless Deploy to Development Environment
+        if: github.ref == 'refs/heads/develop'
+        run: npm run deploy
+      - name: Serverless Deploy to Staging Environment
+        if: github.ref == 'refs/heads/release'
+        run: npm run deploy:staging
+      - name: Serverless Deploy to Production Environment
+        if: github.ref == 'refs/heads/main'
+        run: npm run deploy:prod

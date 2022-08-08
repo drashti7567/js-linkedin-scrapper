@@ -1,0 +1,51 @@
+service: linkedin-scraper
+
+plugins:
+  - serverless-webpack
+  - serverless-pseudo-parameters
+  - serverless-offline
+  - serverless-dotenv-plugin
+  - serverless-prune-plugin
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  memorySize: ${env:SLS_PROVIDER_MEMSIZE}
+  timeout: 30
+  apiKeys:
+    - "linkedin-profile-${self:provider.stage}"
+  layers:
+    # Google Chrome for AWS Lambda as a layer
+    # Make sure you use the latest version depending on the region
+    # https://github.com/shelfio/chrome-aws-lambda-layer
+    - arn:aws:lambda:us-east-1:764866452798:layer:chrome-aws-lambda:22
+
+  iamRoleStatements:
+    - ${file(iam/LinkedInCookieBucketIAM.yml):LinkedInCookieBucketIAM}
+
+functions:
+  process-profile:
+    environment:
+      cookieFile: cookie.json
+      #TODO: Change this directory to where you will save your cookie.json file
+      localCookiePath: /Users/drashtidobariya/
+      s3CookieBucket: linkedin-cookie
+    handler: src/handler.profileExtraction
+    events:
+      - http:
+          path: profile_extraction
+          method: post
+          private: true
+          cors: true
+custom:
+  LinkedInCookieBucket:
+    name: linkedin-cookie
+  prune:
+    automatic: true
+    number: 3
+
+package:
+  exclude:
+    - node_modules/puppeteer/.local-chromium/**
